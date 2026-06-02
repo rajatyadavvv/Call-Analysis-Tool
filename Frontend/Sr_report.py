@@ -1,4 +1,3 @@
-import mysql.connector
 import pandas as pd
 from dash import Dash, html, dcc, callback, Output, Input
 import dash_ag_grid as dag
@@ -7,12 +6,7 @@ import plotly.express as px
 app = Dash()
 
 
-conn = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="Rajat@123",
-    database="hmsi"
-)
+
 
 if conn.is_connected():
     print("Connected to MySQL!")
