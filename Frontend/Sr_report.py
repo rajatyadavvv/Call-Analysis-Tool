@@ -3,11 +3,15 @@ import pandas as pd
 from dash import Dash, html, dcc, callback, Output, Input
 import dash_ag_grid as dag
 import plotly.express as px
+from datetime import datetime
 from db import get_connection
 
 dash.register_page(__name__, path="/sr")
 
+
 app = Dash()
+
+
 
 conn = get_connection()
 
@@ -29,7 +33,26 @@ fulfillment_rate = round(
     (filtered_df["Status"] == "Resolved").sum() / len(filtered_df) * 100, 1
 )
 
+approved_df = filtered_df[filtered_df["Status"].isin(["In-Progress","Pending"])].reset_index()
 
+# print(filtered_df.columns)
+approved_df["age_days"] = (datetime.now() - pd.to_datetime(approved_df["Final Approval Time"])).dt.days
+
+bins = [0, 1, 3, 5, 7, float("inf")]
+labels = ["0-1", "2-3", "4-5", "5-7", ">7"]
+approved_df["age_bucket"] = pd.cut(approved_df["age_days"], bins=bins, labels=labels)
+
+fig_aging = px.bar(
+    approved_df["age_bucket"].value_counts().sort_index().reset_index(),
+    x="age_bucket",
+    y="count",
+)
+fig_aging.update_layout(
+    height=300,
+    margin=dict(l=0, r=0, t=10, b=0),
+    xaxis_title="",
+    yaxis_title="",
+)
 # Bar chart
 fig_location = px.bar(filtered_df["Location"].value_counts().reset_index(), 
                       x="Location", y="count")
@@ -134,7 +157,7 @@ def layout():
                             html.Div(
                                 [
                                     html.Div(
-                                        "Category Distribution",
+                                        "Status Category Distribution",
                                         style={
                                             "fontWeight": "600",
                                             "marginBottom": "12px",
@@ -160,9 +183,22 @@ def layout():
                     # Row 2
                     html.Div(
                         [
-                            # same pattern for workgroup and aging
+                            html.Div(
+                                "SR aging Distribution",
+                                style={
+                                            "fontWeight": "600",
+                                            "marginBottom": "12px",
+                                        },
+                            ),
+                            dcc.Graph(figure=fig_aging, config={"displayModeBar": False})
                         ],
-                        style={"display": "flex", "gap": "16px"},
+                        style={
+                                    "flex": "1",
+                                    "background": "white",
+                                    "border": "1px solid #e0e0e0",
+                                    "borderRadius": "8px",
+                                    "padding": "16px",
+                                },
                     ),
                 ],
                 style={"padding": "24px"},
