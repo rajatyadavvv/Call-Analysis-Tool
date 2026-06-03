@@ -1,13 +1,14 @@
 import dash
+import os
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 
 app = dash.Dash(
     __name__,
     use_pages=True,
-    pages_folder="",          # ← pages are in the same folder as main.py
+    pages_folder=os.path.dirname(os.path.abspath(__file__)),         
     external_stylesheets=[dbc.themes.BOOTSTRAP],
-    title="DataDash",
+    title="IT sahay data dashboard",
 )
 
 app.layout = html.Div([

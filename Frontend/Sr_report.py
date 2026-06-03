@@ -8,5 +8,8 @@ dash.register_page(__name__, path="/sr")
 
 conn = get_connection()
 
-df = pd.read_sql("SELECT * FROM sr_report")
+df = pd.read_sql("SELECT * FROM sr_report",conn)
 
+def layout():
+    conn = get_connection()
+    return html.Div("SR page works")

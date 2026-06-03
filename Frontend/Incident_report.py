@@ -7,3 +7,7 @@ from db import get_connection
 dash.register_page(__name__, path="/incident")
 
 conn = get_connection()
+
+def layout():
+    conn = get_connection()
+    return html.Div("Incident page works")

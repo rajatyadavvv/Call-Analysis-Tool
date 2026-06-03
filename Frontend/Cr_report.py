@@ -6,5 +6,7 @@ import plotly.express as px
 from db import get_connection
 dash.register_page(__name__, path="/cr")
 
-conn = get_connection()
 
+def layout():
+    conn = get_connection()
+    return html.Div("CR page works")
