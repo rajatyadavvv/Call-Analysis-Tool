@@ -2,7 +2,7 @@ import dash
 import pandas as pd
 from dash import Dash, html, dcc, callback, Output, Input
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, timedelta
 from db import get_connection
 
 dash.register_page(__name__, path="/cr")
@@ -209,6 +209,44 @@ def layout():
             html.Div(id="cr-detail-panel"),
 
         ], style={"margin": "24px", **CARD, "padding": "20px 24px"}),
+                    html.Div(
+                [
+                    html.Div(
+                        "AI Insights",
+                        style={
+                            "fontWeight": "600",
+                            "fontSize": "16px",
+                            "marginBottom": "12px",
+                        },
+                    ),
+                    # Filter dropdown
+                    dcc.Dropdown(
+                        id="insights-range",
+                        options=[
+                            {"label": "1 Week", "value": 1},
+                            {"label": "2 Weeks", "value": 2},
+                            {"label": "3 Weeks", "value": 3},
+                            {"label": "4 Weeks", "value": 4},
+                        ],
+                        value=1,
+                        clearable=False,
+                        style={"width": "200px", "marginBottom": "16px"},
+                    ),
+                    # Insights output
+                    html.Div(
+                        id="ai-insights-output",
+                        children="Select a time range to generate insights.",
+                    ),
+                ],
+                style={
+                    "margin": "24px",
+                    "padding": "16px",
+                    "background": "white",
+                    "border": "1px solid #e0e0e0",
+                    "borderRadius": "8px",
+                },
+            ),
+
     ])
 
 
@@ -225,7 +263,17 @@ def layout():
     Input("f-workgroup",   "value"),
     Input("f-change-cat",  "value"),
     Input("f-age",         "value"),
+    Output("ai-insights-output", "children"),
+    Input("insights-range", "value"),
 )
+def update_insights(weeks):
+    # Filter by selected weeks
+    cutoff = datetime.now() - timedelta(weeks=weeks)
+    insights_df = df[pd.to_datetime(df["LogTime"]) >= cutoff]
+
+    # Process insights_df and send to AI
+
+    return html.Div("insights will show here")
 def update_cr_dropdown(statuses, priorities, risks, change_types,
                        categories, workgroups, change_cats, age_range):
     filt = df.copy()
