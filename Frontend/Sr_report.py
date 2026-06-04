@@ -3,15 +3,13 @@ import pandas as pd
 from dash import Dash, html, dcc, callback, Output, Input
 import dash_ag_grid as dag
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, timedelta
 from db import get_connection
 
 dash.register_page(__name__, path="/sr")
 
 
 app = Dash()
-
-
 
 conn = get_connection()
 
@@ -21,7 +19,7 @@ filtered_df = df[
     df["Workgroup"].isin(["IT Support (ALC)", "IT Support (EVSM)"])
 ].reset_index(drop=True)
 
-active_srs = (filtered_df["Status"].isin(["In-Progress","Pending"])).sum()
+active_srs = (filtered_df["Status"].isin(["In-Progress", "Pending"])).sum()
 
 pending_approval = (filtered_df["Status"] == "Pending for Approval").sum()
 
@@ -33,10 +31,29 @@ fulfillment_rate = round(
     (filtered_df["Status"] == "Resolved").sum() / len(filtered_df) * 100, 1
 )
 
-approved_df = filtered_df[filtered_df["Status"].isin(["In-Progress","Pending"])].reset_index()
+approved_df = filtered_df[
+    filtered_df["Status"].isin(["In-Progress", "Pending"])
+].reset_index()
 
 # print(filtered_df.columns)
-approved_df["age_days"] = (datetime.now() - pd.to_datetime(approved_df["Final Approval Time"])).dt.days
+approved_df["age_days"] = (
+    datetime.now() - pd.to_datetime(approved_df["Final Approval Time"])
+).dt.days
+
+
+@callback(
+    Output("ai-insights-output", "children"),
+    Input("insights-range", "value"),
+)
+def update_insights(weeks):
+    # Filter by selected weeks
+    cutoff = datetime.now() - timedelta(weeks=weeks)
+    insights_df = filtered_df[pd.to_datetime(filtered_df["LogTime"]) >= cutoff]
+
+    # Process insights_df and send to AI
+
+    return html.Div("insights will show here")
+
 
 bins = [0, 1, 3, 5, 7, float("inf")]
 labels = ["0-1", "2-3", "4-5", "5-7", ">7"]
@@ -54,17 +71,23 @@ fig_aging.update_layout(
     yaxis_title="",
 )
 # Bar chart
-fig_location = px.bar(filtered_df["Location"].value_counts().reset_index(), 
-                      x="Location", y="count")
+fig_location = px.bar(
+    filtered_df["Location"].value_counts().reset_index(), x="Location", y="count"
+)
 
 # Pie chart
-fig_category = px.pie(filtered_df["Status"].value_counts().reset_index(), names="Status", values="count")
+fig_category = px.pie(
+    filtered_df["Status"].value_counts().reset_index(), names="Status", values="count"
+)
 
 # Horizontal bar
-# fig_workgroup = px.bar(filtered_df, x="count_column", y="workgroup_column", orientation="h")
+fig_workgroup = px.bar(
+    filtered_df["Workgroup"].value_counts().reset_index(),
+    x="count",
+    y="Workgroup",
+    orientation="h",
+)
 
-# Line chart
-# fig_aging = px.line(filtered_df, x="date_column", y="count_column")
 
 def kpi_card(label, value, delta):
     return html.Div(
@@ -184,24 +207,92 @@ def layout():
                     html.Div(
                         [
                             html.Div(
-                                "SR aging Distribution",
-                                style={
+                                [
+                                    html.Div(
+                                        "SR aging Distribution",
+                                        style={
                                             "fontWeight": "600",
                                             "marginBottom": "12px",
                                         },
+                                    ),
+                                    dcc.Graph(
+                                        figure=fig_aging,
+                                        config={"displayModeBar": False},
+                                    ),
+                                ],
+                                style={
+                                    "flex": "1",
+                                    "background": "white",
+                                    "border": "1px solid #e0e0e0",
+                                    "borderRadius": "8px",
+                                    "padding": "16px",
+                                }
                             ),
-                            dcc.Graph(figure=fig_aging, config={"displayModeBar": False})
-                        ],
-                        style={
+                            html.Div(
+                                [
+                                    html.Div(
+                                        "Workgroup Distribution",
+                                        style={
+                                            "fontWeight": "600",
+                                            "marginBottom": "12px",
+                                        },
+                                    ),
+                                    dcc.Graph(figure=fig_workgroup),
+                                ],
+                                style={
                                     "flex": "1",
                                     "background": "white",
                                     "border": "1px solid #e0e0e0",
                                     "borderRadius": "8px",
                                     "padding": "16px",
                                 },
+                            ),
+                        ],
+                        style={
+                            "display": "flex",
+                            "gap": "16px",
+                            "marginBottom": "16px",
+                        },
                     ),
                 ],
                 style={"padding": "24px"},
+            ),
+            html.Div(
+                [
+                    html.Div(
+                        "AI Insights",
+                        style={
+                            "fontWeight": "600",
+                            "fontSize": "16px",
+                            "marginBottom": "12px",
+                        },
+                    ),
+                    # Filter dropdown
+                    dcc.Dropdown(
+                        id="insights-range",
+                        options=[
+                            {"label": "1 Week", "value": 1},
+                            {"label": "2 Weeks", "value": 2},
+                            {"label": "3 Weeks", "value": 3},
+                            {"label": "4 Weeks", "value": 4},
+                        ],
+                        value=1,
+                        clearable=False,
+                        style={"width": "200px", "marginBottom": "16px"},
+                    ),
+                    # Insights output
+                    html.Div(
+                        id="ai-insights-output",
+                        children="Select a time range to generate insights.",
+                    ),
+                ],
+                style={
+                    "margin": "24px",
+                    "padding": "16px",
+                    "background": "white",
+                    "border": "1px solid #e0e0e0",
+                    "borderRadius": "8px",
+                },
             ),
         ]
     )
