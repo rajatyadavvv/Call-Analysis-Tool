@@ -14,7 +14,6 @@ app = dash.Dash(
 app.layout = html.Div([
     dcc.Location(id="url"),
     html.Div([
-    # Brand
     html.Div([
         html.Div("DataDash", style={"fontWeight": "800", "fontSize": "18px", "color": "#111"}),
     ], style={"padding": "24px 20px 32px"}),
@@ -61,7 +60,7 @@ app.layout = html.Div([
 }),
     html.Div([
         dash.page_container,
-    ], style={"marginLeft": "230px"}),
+    ], style={"marginLeft": "220px"}),
 ])
 
 if __name__ == "__main__":
