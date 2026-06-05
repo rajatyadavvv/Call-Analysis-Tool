@@ -136,7 +136,7 @@ def layout():
             html.Div([
                 html.Div([
                     html.Div([html.Div("Monthly Volume by Incident Type", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-month", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
-                    html.Div([html.Div("AI-Based Incident Categorization", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-category", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
+                    html.Div([html.Div("Incident Categorization", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-category", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
                 ], style={"display": "flex", "gap": "16px", "marginBottom": "16px"}),
 
                 html.Div([
@@ -158,7 +158,7 @@ def layout():
                     html.Div([
                         html.Div([
                             html.Span("✦ ", style={"fontSize": "18px"}),
-                            html.Span("AI Insights Generator", style={"fontWeight": "700", "fontSize": "16px"}),
+                            html.Span("Click to generate insight", style={"fontWeight": "700", "fontSize": "16px"}),
                         ], style={"marginBottom": "16px", "display": "flex", "alignItems": "center"}),
                         
                         html.Div([
@@ -242,7 +242,7 @@ def update_dashboard(start_date, end_date):
     conn.close()
 
     df_full = df_full[df_full["Owner Work Group Name"].isin(["IT Support (ALC)", "IT Support (EVSM)"])].reset_index(drop=True)
-    df_full['AI_Category'] = df_full['Description'].apply(categorize_cr)
+    df_full['Category'] = df_full['Description'].apply(categorize_cr)
     df_full['Request Registration Time'] = pd.to_datetime(df_full['Request Registration Time'], errors='coerce')
     df_full['Month_Value'] = df_full['Request Registration Time'].dt.to_period('M').astype(str)
 
@@ -294,20 +294,20 @@ def update_dashboard(start_date, end_date):
         kpi_card("CRITICAL PRIORITY", critical_priority, "High priority CRs"),
     ]
 
-    month_cat_counts = df.groupby(['Month_Value', 'AI_Category']).size().reset_index(name='count')
+    month_cat_counts = df.groupby(['Month_Value', 'Category']).size().reset_index(name='count')
     month_cat_counts['Month_Label'] = pd.to_datetime(month_cat_counts['Month_Value']).dt.strftime('%b %y')
     month_cat_counts = month_cat_counts.sort_values('Month_Value')
 
     fig_month = px.bar(
-        month_cat_counts, x="Month_Label", y="count", color="AI_Category", text="count", 
+        month_cat_counts, x="Month_Label", y="count", color="Category", text="count", 
         color_discrete_sequence=px.colors.qualitative.Pastel
     )
     fig_month.update_layout(height=320, margin=dict(l=0, r=0, t=10, b=0), xaxis_title="", yaxis_title="Total CRs", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), title_text="", plot_bgcolor="rgba(0,0,0,0)",)
     fig_month.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#f0f0f0')
     fig_month.update_traces(textposition='inside', textfont=dict(color='white', size=11))
 
-    cat_counts = df['AI_Category'].value_counts().sort_values(ascending=True).reset_index()
-    fig_category = px.bar(cat_counts, y='AI_Category', x='count', orientation='h', color='AI_Category')
+    cat_counts = df['Category'].value_counts().sort_values(ascending=True).reset_index()
+    fig_category = px.bar(cat_counts, y='Category', x='count', orientation='h', color='Category')
     fig_category.update_layout(height=320, margin=dict(l=0, r=0, t=10, b=0), xaxis_title="", yaxis_title="", showlegend=False)
 
     if df['Risk'].dropna().empty:
@@ -350,7 +350,7 @@ def update_ai_insights(n_clicks, start_date, end_date, ai_months):
     conn.close()
 
     df_full = df_full[df_full["Owner Work Group Name"].isin(["IT Support (ALC)", "IT Support (EVSM)"])].reset_index(drop=True)
-    df_full['AI_Category'] = df_full['Description'].apply(categorize_cr)
+    df_full['Category'] = df_full['Description'].apply(categorize_cr)
     df_full['Request Registration Time'] = pd.to_datetime(df_full['Request Registration Time'], errors='coerce')
 
     df_cb = df_full.copy()
@@ -365,7 +365,7 @@ def update_ai_insights(n_clicks, start_date, end_date, ai_months):
     cr_lines = []
     for _, row in df_cb.iterrows():
         cr_lines.append(
-            f"ID: {row['Change Request Id']} | Type: {row['AI_Category']} | "
+            f"ID: {row['Change Request Id']} | Type: {row['Category']} | "
             f"Status: {row['Status']} | Risk: {row['Risk']} | Desc: {row['Description']}"
         )
     cr_text = "\n".join(cr_lines)
@@ -395,6 +395,7 @@ def update_ai_insights(n_clicks, start_date, end_date, ai_months):
 
 
 # ── UPDATED: SIDE-PANEL DRILL-DOWN CALLBACK ───────────────────────────────────
+# ── UPDATED: SIDE-PANEL DRILL-DOWN CALLBACK ───────────────────────────────────
 @callback(
     Output("side-panel-content", "children"),
     Output("side-panel-container", "style"),
@@ -415,8 +416,6 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
         return dash.no_update, dash.no_update
 
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
-    # Base dictionary style to manage visibility
     current_style = SIDE_PANEL_BASE_STYLE.copy()
 
     # If the user clicked the close button, hide the panel
@@ -424,13 +423,13 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
         current_style["transform"] = "translateX(100%)"
         return dash.no_update, current_style
 
-    # 1. Fetch & prep data exactly as the main callback does
+    # 1. Fetch & prep data
     conn = get_connection()
     df = pd.read_sql("SELECT * FROM cr_report", conn)
     conn.close()
 
     df = df[df["Owner Work Group Name"].isin(["IT Support (ALC)", "IT Support (EVSM)"])].reset_index(drop=True)
-    df['AI_Category'] = df['Description'].apply(categorize_cr)
+    df['Category'] = df['Description'].apply(categorize_cr)
     df['Request Registration Time'] = pd.to_datetime(df['Request Registration Time'], errors='coerce')
     df['Month_Label'] = df['Request Registration Time'].dt.strftime('%b %y')
     
@@ -439,7 +438,7 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
         end_dt = pd.to_datetime(end_date).replace(hour=23, minute=59, second=59)
         df = df[(df['Request Registration Time'] >= start_dt) & (df['Request Registration Time'] <= end_dt)].copy()
 
-    # Pre-calculate aging logic so it's ready if the aging chart is clicked
+    # Pre-calculate aging logic
     pending_df = df[df["Status"].isin(PENDING_STATUSES)].copy()
     if not pending_df.empty:
         pending_df["age_days"] = (datetime.now() - pending_df["Request Registration Time"]).dt.days
@@ -447,10 +446,9 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
         labels = ["0-5", "6-10", "11-15", "16-30", ">30"]
         pending_df["age_bucket"] = pd.cut(pending_df["age_days"], bins=bins, labels=labels)
 
-    # 2. Filter data depending on which specific chart was clicked
+    # 2. Filter logic
     filtered_df = pd.DataFrame()
     filter_text = ""
-
     try:
         if triggered_id == "chart-month" and c_month:
             clicked_val = c_month['points'][0]['x']
@@ -458,7 +456,7 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
             filter_text = f"Month: {clicked_val}"
         elif triggered_id == "chart-category" and c_cat:
             clicked_val = c_cat['points'][0]['y'] 
-            filtered_df = df[df['AI_Category'] == clicked_val]
+            filtered_df = df[df['Category'] == clicked_val]
             filter_text = f"Category: {clicked_val}"
         elif triggered_id == "chart-risk" and c_risk:
             clicked_val = c_risk['points'][0]['label'] 
@@ -477,13 +475,45 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
             filtered_df = pending_df[pending_df['age_bucket'] == clicked_val]
             filter_text = f"Aging: {clicked_val} Days"
     except (KeyError, TypeError, IndexError):
-        # Open panel to show error state if click couldn't be parsed
         current_style["transform"] = "translateX(0%)"
         return html.Div("Could not process the selection.", style={"color": "red"}), current_style
 
     if filtered_df.empty:
         current_style["transform"] = "translateX(0%)"
-        return html.Div("No records found for the selected data point.", style={"color": "#888"}), current_style
+        return html.Div("No records found.", style={"color": "#888"}), current_style
+
+    # 3. Create ACCORDION cards with DETAILED SUMMARY
+    cards = []
+    for _, row in filtered_df.iterrows():
+        cards.append(
+            html.Details([
+                html.Summary([
+                    # Detailed Summary Header
+                    html.Div([
+                        html.Span(f"#{row.get('Change Request Id', 'N/A')}", style={"fontWeight": "800", "fontSize": "14px", "color": "#111827"}),
+                        html.Span(f" • {row.get('Status', 'N/A')}", style={"fontSize": "12px", "color": "#059669", "fontWeight": "600"}),
+                        
+                        html.Span(" ▾", style={"float": "right", "color": "#888"})
+                    ], style={"display": "flex", "alignItems": "center", "gap": "8px"})
+                ], style={"padding": "12px", "cursor": "pointer", "backgroundColor": "#f9fafb", "borderRadius": "4px", "marginBottom": "4px", "listStyle": "none", "border": "1px solid #e5e7eb"}),
+                
+                # Expanded Details Content
+                html.Div([
+                    html.Div([html.B("Category: "), f"{row.get('Category', 'N/A')}"], style={"marginBottom": "8px"}),
+                    html.Div([html.B("Priority: "), f"{row.get('Priority', 'N/A')}"], style={"marginBottom": "8px"}),
+                    html.Div([html.B("Owner: "), f"{row.get('Owner Work Group Name', 'N/A')}"], style={"marginBottom": "8px"}),
+                    html.Div([html.B("Description:"), html.P(f"{str(row.get('Description', ''))}", style={"marginTop": "4px", "color": "#555", "fontSize": "12px"})]),
+                ], style={"padding": "16px", "fontSize": "13px", "border": "1px solid #e5e7eb", "borderTop": "none", "borderRadius": "0 0 4px 4px"})
+            ], style={"marginBottom": "8px"})
+        )
+
+    content_layout = html.Div([
+        html.Div(f"{len(filtered_df)} items found for '{filter_text}'", style={"fontWeight": "600", "marginBottom": "16px", "color": "#111827", "fontSize": "13px", "padding": "8px"}),
+        html.Div(cards)
+    ])
+
+    current_style["transform"] = "translateX(0%)"
+    return content_layout, current_style
 
     # 3. Create UI Cards for the filtered results
     cards = []
