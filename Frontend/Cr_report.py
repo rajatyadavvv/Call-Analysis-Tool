@@ -77,6 +77,23 @@ max_date = df_init['Request Registration Time'].max().date() if not df_init.empt
 # ── Styling Templates ─────────────────────────────────────────────────────────
 CARD = {"background": "white", "border": "1px solid #e0e0e0", "borderRadius": "8px", "padding": "16px"}
 
+# Base style for the sliding side panel
+SIDE_PANEL_BASE_STYLE = {
+    "position": "fixed",
+    "top": "0",
+    "right": "0",
+    "width": "400px",
+    "height": "100vh",
+    "backgroundColor": "white",
+    "boxShadow": "-4px 0 15px rgba(0,0,0,0.1)",
+    "zIndex": "9999",
+    "transition": "transform 0.3s ease-in-out",
+    "transform": "translateX(100%)", # Hidden to the right by default
+    "display": "flex",
+    "flexDirection": "column"
+}
+
+
 def kpi_card(label, value, delta):
     return html.Div([
         html.Div(label, style={"fontSize": "11px", "color": "#888", "marginBottom": "8px", "fontWeight": "600"}),
@@ -88,102 +105,120 @@ def kpi_card(label, value, delta):
 # ── LAYOUT ────────────────────────────────────────────────────────────────────
 def layout():
     return html.Div([
-        html.Div([
-            html.Span("Dashboards / Change Requests (ALC & EVSM Only)"),
-            html.Div([
-                html.Span("🔔", style={"padding": "12px 20px"}),
-                html.Span("👤", style={"padding": "12px 20px"}),
-            ]),
-        ], style={"display": "flex", "justifyContent": "space-between", "alignItems": "center", "padding": "16px 24px", "borderBottom": "1px solid #e0e0e0", "background": "#F3F3F3"}),
-
-        html.H1("ALC & EVSM Change Requests", style={"padding": "12px 20px", "marginBottom": "0px"}),
-
-        # Global Date Range Picker
-        html.Div([
-            html.Div("FILTER DASHBOARD BY DATE RANGE:", style={"fontWeight": "700", "marginBottom": "8px", "fontSize": "11px", "color": "#555", "letterSpacing": "0.05em"}),
-            dcc.DatePickerRange(
-                id='date-picker-range',
-                start_date=min_date,
-                end_date=max_date,
-                display_format='MMM D, YYYY',
-                style={"marginBottom": "24px"}
-            )
-        ], style={"padding": "0 24px"}),
-
-        # Dynamic KPIs Container
-        html.Div(id="kpi-row", style={"display": "flex", "gap": "16px", "padding": "0 24px 24px 24px"}),
-
-        # Dynamic Charts Container
+        # Main Dashboard Content Wrapper
         html.Div([
             html.Div([
-                html.Div([html.Div("Monthly Volume by Incident Type", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-month", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
-                html.Div([html.Div("AI-Based Incident Categorization", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-category", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
-            ], style={"display": "flex", "gap": "16px", "marginBottom": "16px"}),
-
-            html.Div([
-                html.Div([html.Div("Risk Distribution", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-risk", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
-                html.Div([html.Div("Status Distribution", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-status", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
-            ], style={"display": "flex", "gap": "16px", "marginBottom": "16px"}),
-
-            html.Div([
-                html.Div([html.Div("ALC vs EVSM Volume", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-workgroup", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
-                html.Div([html.Div("CR Aging Distribution (Pending)", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-aging", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
-            ], style={"display": "flex", "gap": "16px", "marginBottom": "16px"}),
-        ], style={"padding": "0 24px"}),
-
-        # AI Insights & Oldest Pending Section
-        html.Div([
-            html.Div([
-                
-                # LEFT SIDE: AI Generator
+                html.Span("Dashboards / Change Requests (ALC & EVSM Only)"),
                 html.Div([
-                    html.Div([
-                        html.Span("✦ ", style={"fontSize": "18px"}),
-                        html.Span("AI Insights Generator", style={"fontWeight": "700", "fontSize": "16px"}),
-                    ], style={"marginBottom": "16px", "display": "flex", "alignItems": "center"}),
+                    html.Span("🔔", style={"padding": "12px 20px"}),
+                    html.Span("👤", style={"padding": "12px 20px"}),
+                ]),
+            ], style={"display": "flex", "justifyContent": "space-between", "alignItems": "center", "padding": "16px 24px", "borderBottom": "1px solid #e0e0e0", "background": "#F3F3F3"}),
+
+            html.H1("ALC & EVSM Change Requests", style={"padding": "12px 20px", "marginBottom": "0px"}),
+
+            # Global Date Range Picker
+            html.Div([
+                html.Div("FILTER DASHBOARD BY DATE RANGE:", style={"fontWeight": "700", "marginBottom": "8px", "fontSize": "11px", "color": "#555", "letterSpacing": "0.05em"}),
+                dcc.DatePickerRange(
+                    id='date-picker-range',
+                    start_date=min_date,
+                    end_date=max_date,
+                    display_format='MMM D, YYYY',
+                    style={"marginBottom": "24px"}
+                )
+            ], style={"padding": "0 24px"}),
+
+            # Dynamic KPIs Container
+            html.Div(id="kpi-row", style={"display": "flex", "gap": "16px", "padding": "0 24px 24px 24px"}),
+
+            # Dynamic Charts Container
+            html.Div([
+                html.Div([
+                    html.Div([html.Div("Monthly Volume by Incident Type", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-month", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
+                    html.Div([html.Div("AI-Based Incident Categorization", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-category", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
+                ], style={"display": "flex", "gap": "16px", "marginBottom": "16px"}),
+
+                html.Div([
+                    html.Div([html.Div("Risk Distribution", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-risk", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
+                    html.Div([html.Div("Status Distribution", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-status", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
+                ], style={"display": "flex", "gap": "16px", "marginBottom": "16px"}),
+
+                html.Div([
+                    html.Div([html.Div("ALC vs EVSM Volume", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-workgroup", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
+                    html.Div([html.Div("CR Aging Distribution (Pending)", style={"fontWeight": "600", "marginBottom": "12px"}), dcc.Graph(id="chart-aging", config={"displayModeBar": False})], style={"flex": "1", **CARD}),
+                ], style={"display": "flex", "gap": "16px", "marginBottom": "16px"}),
+            ], style={"padding": "0 24px"}),
+
+            # AI Insights & Oldest Pending Section
+            html.Div([
+                html.Div([
                     
+                    # LEFT SIDE: AI Generator
                     html.Div([
-                        html.Div("Select AI Analysis Period (relative to End Date):", style={"fontSize": "11px", "fontWeight": "600", "color": "#888", "marginBottom": "6px"}),
-                        dcc.Dropdown(
-                            id="ai-months-dropdown",
-                            options=[
-                                {"label": "Last 1 Month", "value": 1},
-                                {"label": "Last 2 Months", "value": 2},
-                                {"label": "Last 3 Months", "value": 3},
-                                {"label": "Last 6 Months", "value": 6},
-                                {"label": "Entire Selection", "value": 100},
-                            ],
-                            value=1,
-                            clearable=False,
-                            style={"width": "220px", "marginBottom": "16px"}
+                        html.Div([
+                            html.Span("✦ ", style={"fontSize": "18px"}),
+                            html.Span("AI Insights Generator", style={"fontWeight": "700", "fontSize": "16px"}),
+                        ], style={"marginBottom": "16px", "display": "flex", "alignItems": "center"}),
+                        
+                        html.Div([
+                            html.Div("Select AI Analysis Period (relative to End Date):", style={"fontSize": "11px", "fontWeight": "600", "color": "#888", "marginBottom": "6px"}),
+                            dcc.Dropdown(
+                                id="ai-months-dropdown",
+                                options=[
+                                    {"label": "Last 1 Month", "value": 1},
+                                    {"label": "Last 2 Months", "value": 2},
+                                    {"label": "Last 3 Months", "value": 3},
+                                    {"label": "Last 6 Months", "value": 6},
+                                    {"label": "Entire Selection", "value": 100},
+                                ],
+                                value=1,
+                                clearable=False,
+                                style={"width": "220px", "marginBottom": "16px"}
+                            ),
+                        ]),
+
+                        html.Button("Generate AI Insights", id="btn-generate-ai", style={
+                            "background": "#111827", "color": "white", "border": "none",
+                            "padding": "10px 16px", "borderRadius": "6px", "cursor": "pointer",
+                            "fontWeight": "600", "marginBottom": "16px", "fontSize": "12px"
+                        }),
+
+                        dcc.Loading(
+                            html.Div(
+                                id="ai-insights-output-cr",
+                                children="Select a date range above, choose an AI monthly period, and click generate.",
+                                style={"fontSize": "13px", "color": "#333", "lineHeight": "1.6", "whiteSpace": "pre-wrap", "fontFamily": "inherit"}
+                            ), type="circle", color="#111827"
                         ),
-                    ]),
+                    ], style={"flex": "1", "paddingRight": "24px", "borderRight": "1px solid #e0e0e0"}),
 
-                    html.Button("Generate AI Insights", id="btn-generate-ai", style={
-                        "background": "#111827", "color": "white", "border": "none",
-                        "padding": "10px 16px", "borderRadius": "6px", "cursor": "pointer",
-                        "fontWeight": "600", "marginBottom": "16px", "fontSize": "12px"
-                    }),
+                    # RIGHT SIDE: Oldest Pending
+                    html.Div([
+                        dcc.Loading(
+                            html.Div(id="oldest-pending-output"),
+                            type="circle", color="#111827"
+                        )
+                    ], style={"flex": "1", "paddingLeft": "24px"}),
 
-                    dcc.Loading(
-                        html.Div(
-                            id="ai-insights-output-cr",
-                            children="Select a date range above, choose an AI monthly period, and click generate.",
-                            style={"fontSize": "13px", "color": "#333", "lineHeight": "1.6", "whiteSpace": "pre-wrap", "fontFamily": "inherit"}
-                        ), type="circle", color="#111827"
-                    ),
-                ], style={"flex": "1", "paddingRight": "24px", "borderRight": "1px solid #e0e0e0"}),
+                ], style={"display": "flex"}),
+            ], style={"padding": "24px", "background": "white", "margin": "0 24px 40px 24px", "border": "1px solid #e0e0e0", "borderRadius": "8px"}),
+        ]),
 
-                # RIGHT SIDE: Oldest Pending (Now updates on Date Change)
-                html.Div([
-                    dcc.Loading(
-                        html.Div(id="oldest-pending-output"),
-                        type="circle", color="#111827"
-                    )
-                ], style={"flex": "1", "paddingLeft": "24px"}),
-
-            ], style={"display": "flex"}),
-        ], style={"padding": "24px", "background": "white", "margin": "0 24px 40px 24px", "border": "1px solid #e0e0e0", "borderRadius": "8px"}),
+        # ── NEW: Slide-Out Side Panel for Drill-down Details ─────────────────
+        html.Div(id="side-panel-container", style=SIDE_PANEL_BASE_STYLE, children=[
+            # Header
+            html.Div([
+                html.Div("Chart Drill-down", style={"fontWeight": "700", "fontSize": "16px", "color": "#111827"}),
+                html.Button("✖", id="close-panel-btn", style={
+                    "background": "transparent", "border": "none", "fontSize": "18px", 
+                    "cursor": "pointer", "color": "#888"
+                })
+            ], style={"padding": "20px", "borderBottom": "1px solid #e0e0e0", "display": "flex", "justifyContent": "space-between", "alignItems": "center", "backgroundColor": "#f9fafb"}),
+            
+            # Content Area
+            html.Div(id="side-panel-content", style={"padding": "20px", "overflowY": "auto", "flex": "1"})
+        ])
 
     ])
 
@@ -197,7 +232,7 @@ def layout():
     Output("chart-status", "figure"),
     Output("chart-workgroup", "figure"),
     Output("chart-aging", "figure"),
-    Output("oldest-pending-output", "children"), # 🌟 Added Oldest Output here
+    Output("oldest-pending-output", "children"), 
     Input("date-picker-range", "start_date"),
     Input("date-picker-range", "end_date"),
 )
@@ -211,19 +246,16 @@ def update_dashboard(start_date, end_date):
     df_full['Request Registration Time'] = pd.to_datetime(df_full['Request Registration Time'], errors='coerce')
     df_full['Month_Value'] = df_full['Request Registration Time'].dt.to_period('M').astype(str)
 
-    # 1. Calculate OVERALL Oldest (Before filtering by date)
     pending_overall = df_full[df_full["Status"].isin(PENDING_STATUSES)].copy()
     pending_overall["age_days"] = (datetime.now() - pending_overall["Request Registration Time"]).dt.days
     oldest_overall = pending_overall.nlargest(3, "age_days")
 
-    # 2. Filter data for the Main Dashboard based on Date Range Picker
     df = df_full.copy()
     if start_date and end_date:
         start_dt = pd.to_datetime(start_date)
         end_dt = pd.to_datetime(end_date).replace(hour=23, minute=59, second=59)
         df = df[(df['Request Registration Time'] >= start_dt) & (df['Request Registration Time'] <= end_dt)].copy()
 
-    # 3. Calculate SELECTION Oldest (After filtering by date)
     pending_selection = df[df["Status"].isin(PENDING_STATUSES)].copy()
     if not pending_selection.empty:
         pending_selection["age_days"] = (datetime.now() - pending_selection["Request Registration Time"]).dt.days
@@ -231,16 +263,13 @@ def update_dashboard(start_date, end_date):
     else:
         oldest_selection = pd.DataFrame()
 
-    # 4. Build the combined Oldest UI layout
     combined_oldest_layout = html.Div([
         html.Div("OLDEST PENDING (IN SELECTED DATE RANGE)", style={"fontSize": "11px", "color": "#888", "fontWeight": "600", "marginBottom": "8px", "letterSpacing": "0.05em"}),
         html.Div(build_oldest_ui(oldest_selection, "No pending items for this timeframe."), style={"marginBottom": "32px"}),
-
         html.Div("OLDEST PENDING (ALL TIME OVERALL)", style={"fontSize": "11px", "color": "#888", "fontWeight": "600", "marginBottom": "8px", "letterSpacing": "0.05em"}),
         html.Div(build_oldest_ui(oldest_overall, "No pending items overall.")),
     ])
 
-    # 5. Build empty dashboard state if no data in range
     if df.empty:
         empty_fig = px.bar(title="No Data Available for this Range")
         empty_fig.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
@@ -252,7 +281,6 @@ def update_dashboard(start_date, end_date):
         ]
         return kpi_empty, empty_fig, empty_fig, empty_fig, empty_fig, empty_fig, empty_fig, combined_oldest_layout
 
-    # 6. Calculate main KPIs
     total_pending = int((df["Status"].isin(PENDING_STATUSES)).sum())
     total_resolved = int((df["Status"].isin(["Implementation Review Closed", "Closed", "Implemented"])).sum())
     critical_priority = int((df["Priority"] == "High").sum())
@@ -266,7 +294,6 @@ def update_dashboard(start_date, end_date):
         kpi_card("CRITICAL PRIORITY", critical_priority, "High priority CRs"),
     ]
 
-    # 7. Generate Charts
     month_cat_counts = df.groupby(['Month_Value', 'AI_Category']).size().reset_index(name='count')
     month_cat_counts['Month_Label'] = pd.to_datetime(month_cat_counts['Month_Value']).dt.strftime('%b %y')
     month_cat_counts = month_cat_counts.sort_values('Month_Value')
@@ -275,11 +302,7 @@ def update_dashboard(start_date, end_date):
         month_cat_counts, x="Month_Label", y="count", color="AI_Category", text="count", 
         color_discrete_sequence=px.colors.qualitative.Pastel
     )
-    fig_month.update_layout(
-        height=320, margin=dict(l=0, r=0, t=10, b=0), xaxis_title="", yaxis_title="Total CRs",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), title_text="",
-        plot_bgcolor="rgba(0,0,0,0)",
-    )
+    fig_month.update_layout(height=320, margin=dict(l=0, r=0, t=10, b=0), xaxis_title="", yaxis_title="Total CRs", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), title_text="", plot_bgcolor="rgba(0,0,0,0)",)
     fig_month.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#f0f0f0')
     fig_month.update_traces(textposition='inside', textfont=dict(color='white', size=11))
 
@@ -312,7 +335,7 @@ def update_dashboard(start_date, end_date):
     return kpi_children, fig_month, fig_category, fig_risk, fig_status, fig_workgroup, fig_aging, combined_oldest_layout
 
 
-# ── AI INSIGHTS CALLBACK (Triggers on Button Click ONLY & Returns only text) ────
+# ── AI INSIGHTS CALLBACK ────────────────────────────────────────────────────────
 @callback(
     Output("ai-insights-output-cr", "children"),
     Input("btn-generate-ai", "n_clicks"),
@@ -333,12 +356,10 @@ def update_ai_insights(n_clicks, start_date, end_date, ai_months):
     df_cb = df_full.copy()
     if start_date and end_date:
         end_dt = pd.to_datetime(end_date).replace(hour=23, minute=59, second=59)
-        
         if ai_months == 100:
             start_dt = pd.to_datetime(start_date)
         else:
             start_dt = end_dt - pd.DateOffset(months=ai_months)
-        
         df_cb = df_cb[(df_cb['Request Registration Time'] >= start_dt) & (df_cb['Request Registration Time'] <= end_dt)].copy()
 
     cr_lines = []
@@ -363,7 +384,6 @@ def update_ai_insights(n_clicks, start_date, end_date, ai_months):
         Change Requests:
         {cr_text}
         """
-
         try:
             response = client.chat.completions.create(
                 model="google/gemma-4-31b-it:free",
@@ -372,3 +392,121 @@ def update_ai_insights(n_clicks, start_date, end_date, ai_months):
             return response.choices[0].message.content
         except Exception as e:
             return f"Error fetching insights: {str(e)}"
+
+
+# ── UPDATED: SIDE-PANEL DRILL-DOWN CALLBACK ───────────────────────────────────
+@callback(
+    Output("side-panel-content", "children"),
+    Output("side-panel-container", "style"),
+    Input("chart-month", "clickData"),
+    Input("chart-category", "clickData"),
+    Input("chart-risk", "clickData"),
+    Input("chart-status", "clickData"),
+    Input("chart-workgroup", "clickData"),
+    Input("chart-aging", "clickData"),
+    Input("close-panel-btn", "n_clicks"),
+    State("date-picker-range", "start_date"),
+    State("date-picker-range", "end_date"),
+    prevent_initial_call=True
+)
+def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, close_btn, start_date, end_date):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update
+
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    # Base dictionary style to manage visibility
+    current_style = SIDE_PANEL_BASE_STYLE.copy()
+
+    # If the user clicked the close button, hide the panel
+    if triggered_id == "close-panel-btn":
+        current_style["transform"] = "translateX(100%)"
+        return dash.no_update, current_style
+
+    # 1. Fetch & prep data exactly as the main callback does
+    conn = get_connection()
+    df = pd.read_sql("SELECT * FROM cr_report", conn)
+    conn.close()
+
+    df = df[df["Owner Work Group Name"].isin(["IT Support (ALC)", "IT Support (EVSM)"])].reset_index(drop=True)
+    df['AI_Category'] = df['Description'].apply(categorize_cr)
+    df['Request Registration Time'] = pd.to_datetime(df['Request Registration Time'], errors='coerce')
+    df['Month_Label'] = df['Request Registration Time'].dt.strftime('%b %y')
+    
+    if start_date and end_date:
+        start_dt = pd.to_datetime(start_date)
+        end_dt = pd.to_datetime(end_date).replace(hour=23, minute=59, second=59)
+        df = df[(df['Request Registration Time'] >= start_dt) & (df['Request Registration Time'] <= end_dt)].copy()
+
+    # Pre-calculate aging logic so it's ready if the aging chart is clicked
+    pending_df = df[df["Status"].isin(PENDING_STATUSES)].copy()
+    if not pending_df.empty:
+        pending_df["age_days"] = (datetime.now() - pending_df["Request Registration Time"]).dt.days
+        bins = [0, 5, 10, 15, 30, float("inf")]
+        labels = ["0-5", "6-10", "11-15", "16-30", ">30"]
+        pending_df["age_bucket"] = pd.cut(pending_df["age_days"], bins=bins, labels=labels)
+
+    # 2. Filter data depending on which specific chart was clicked
+    filtered_df = pd.DataFrame()
+    filter_text = ""
+
+    try:
+        if triggered_id == "chart-month" and c_month:
+            clicked_val = c_month['points'][0]['x']
+            filtered_df = df[df['Month_Label'] == clicked_val]
+            filter_text = f"Month: {clicked_val}"
+        elif triggered_id == "chart-category" and c_cat:
+            clicked_val = c_cat['points'][0]['y'] 
+            filtered_df = df[df['AI_Category'] == clicked_val]
+            filter_text = f"Category: {clicked_val}"
+        elif triggered_id == "chart-risk" and c_risk:
+            clicked_val = c_risk['points'][0]['label'] 
+            filtered_df = df[df['Risk'] == clicked_val]
+            filter_text = f"Risk: {clicked_val}"
+        elif triggered_id == "chart-status" and c_stat:
+            clicked_val = c_stat['points'][0]['label'] 
+            filtered_df = df[df['Status'] == clicked_val]
+            filter_text = f"Status: {clicked_val}"
+        elif triggered_id == "chart-workgroup" and c_wg:
+            clicked_val = c_wg['points'][0]['y']
+            filtered_df = df[df['Owner Work Group Name'] == clicked_val]
+            filter_text = f"Workgroup: {clicked_val}"
+        elif triggered_id == "chart-aging" and c_aging:
+            clicked_val = c_aging['points'][0]['x']
+            filtered_df = pending_df[pending_df['age_bucket'] == clicked_val]
+            filter_text = f"Aging: {clicked_val} Days"
+    except (KeyError, TypeError, IndexError):
+        # Open panel to show error state if click couldn't be parsed
+        current_style["transform"] = "translateX(0%)"
+        return html.Div("Could not process the selection.", style={"color": "red"}), current_style
+
+    if filtered_df.empty:
+        current_style["transform"] = "translateX(0%)"
+        return html.Div("No records found for the selected data point.", style={"color": "#888"}), current_style
+
+    # 3. Create UI Cards for the filtered results
+    cards = []
+    for _, row in filtered_df.iterrows():
+        cards.append(html.Div([
+            html.Div([
+                html.Span(f"{row.get('Change Request Id', 'N/A')}", style={"fontWeight": "700", "color": "#111827", "fontSize": "13px"}),
+            ], style={"marginBottom": "4px"}),
+            
+            html.Div([
+                html.Span(f"Status: {row.get('Status', 'N/A')}", style={"marginRight": "12px", "color": "#10B981", "fontWeight": "600"}),
+                html.Span(f"Risk: {row.get('Risk', 'N/A')}", style={"marginRight": "12px", "color": "#F59E0B", "fontWeight": "600"}),
+            ], style={"marginBottom": "6px", "fontSize": "11px"}),
+            
+            html.Div(f"{str(row.get('Description', ''))}", style={"fontSize": "12px", "color": "#555", "lineHeight": "1.4", "wordWrap": "break-word"})
+        ], style={"borderBottom": "1px solid #f0f0f0", "padding": "12px 0"}))
+
+    content_layout = html.Div([
+        html.Div(f"{len(filtered_df)} items found for '{filter_text}'", style={"fontWeight": "600", "marginBottom": "16px", "color": "#111827", "fontSize": "13px", "backgroundColor": "#f3f4f6", "padding": "8px", "borderRadius": "4px"}),
+        html.Div(cards)
+    ])
+
+    # Show the panel
+    current_style["transform"] = "translateX(0%)"
+    
+    return content_layout, current_style
