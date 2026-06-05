@@ -1,6 +1,6 @@
 import dash
 import pandas as pd
-from dash import Dash, html, dcc, callback, Output, Input, State
+from dash import Dash, html, dcc, callback, Output, Input, State, MATCH, ALL
 import plotly.express as px
 from datetime import datetime, timedelta
 from db import get_connection  # Database connection intact
@@ -22,6 +22,29 @@ PENDING_STATUSES = [
     "Pre-Migration Approved 1", "Migration date finalized",
     "Pending Further Review", "UAT Approved", "Draft", "Approved by Owner"
 ]
+# ── MASTER DATA & FUNCTIONAL KNOWLEDGE BASE ──────────────────────────────────
+# This dictionary holds static context about the workgroups and categories
+WORKGROUP_MASTER_DATA = {
+    "IT Support (ALC)": {
+        "System_Tier": "Tier 1 - Mission Critical",
+        "Business_Owner": "Plant Operations Head",
+        "Core_Function": "Assembly Line Control - Manages real-time manufacturing line operations.",
+        "Downtime_Impact": "High (Stops production line)"
+    },
+    "IT Support (EVSM)": {
+        "System_Tier": "Tier 2 - Business Critical",
+        "Business_Owner": "Supply Chain & Procurement",
+        "Core_Function": "Enterprise Vendor System - Manages vendor portals and supply chain tracking.",
+        "Downtime_Impact": "Medium (Delays supply chain visibility)"
+    }
+}
+
+FUNCTIONAL_SOP_DATA = {
+    "System Bug": "Verify if issue is isolated to a single user or global. Escalate L3 bugs within 2 hours.",
+    "Access/Security": "Ensure user has submitted formal access request form with Manager approval before proceeding.",
+    "Data Request": "Check if user has BI Dashboard access first. Do not share PII data over email.",
+    "Infrastructure": "Check server health monitoring tools. Ensure no scheduled maintenance is conflicting."
+}
 
 def categorize_cr(desc):
     desc = str(desc).lower()
@@ -396,6 +419,7 @@ def update_ai_insights(n_clicks, start_date, end_date, ai_months):
 
 # ── UPDATED: SIDE-PANEL DRILL-DOWN CALLBACK ───────────────────────────────────
 # ── UPDATED: SIDE-PANEL DRILL-DOWN CALLBACK ───────────────────────────────────
+# ── SIDE-PANEL DRILL-DOWN CALLBACK ────────────────────────────────────────────
 @callback(
     Output("side-panel-content", "children"),
     Output("side-panel-container", "style"),
@@ -418,7 +442,6 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     current_style = SIDE_PANEL_BASE_STYLE.copy()
 
-    # If the user clicked the close button, hide the panel
     if triggered_id == "close-panel-btn":
         current_style["transform"] = "translateX(100%)"
         return dash.no_update, current_style
@@ -429,7 +452,7 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
     conn.close()
 
     df = df[df["Owner Work Group Name"].isin(["IT Support (ALC)", "IT Support (EVSM)"])].reset_index(drop=True)
-    df['Category'] = df['Description'].apply(categorize_cr)
+    df['AI_Category'] = df['Description'].apply(categorize_cr)
     df['Request Registration Time'] = pd.to_datetime(df['Request Registration Time'], errors='coerce')
     df['Month_Label'] = df['Request Registration Time'].dt.strftime('%b %y')
     
@@ -438,7 +461,6 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
         end_dt = pd.to_datetime(end_date).replace(hour=23, minute=59, second=59)
         df = df[(df['Request Registration Time'] >= start_dt) & (df['Request Registration Time'] <= end_dt)].copy()
 
-    # Pre-calculate aging logic
     pending_df = df[df["Status"].isin(PENDING_STATUSES)].copy()
     if not pending_df.empty:
         pending_df["age_days"] = (datetime.now() - pending_df["Request Registration Time"]).dt.days
@@ -446,7 +468,6 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
         labels = ["0-5", "6-10", "11-15", "16-30", ">30"]
         pending_df["age_bucket"] = pd.cut(pending_df["age_days"], bins=bins, labels=labels)
 
-    # 2. Filter logic
     filtered_df = pd.DataFrame()
     filter_text = ""
     try:
@@ -456,7 +477,7 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
             filter_text = f"Month: {clicked_val}"
         elif triggered_id == "chart-category" and c_cat:
             clicked_val = c_cat['points'][0]['y'] 
-            filtered_df = df[df['Category'] == clicked_val]
+            filtered_df = df[df['AI_Category'] == clicked_val]
             filter_text = f"Category: {clicked_val}"
         elif triggered_id == "chart-risk" and c_risk:
             clicked_val = c_risk['points'][0]['label'] 
@@ -482,27 +503,44 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
         current_style["transform"] = "translateX(0%)"
         return html.Div("No records found.", style={"color": "#888"}), current_style
 
-    # 3. Create ACCORDION cards with DETAILED SUMMARY
+    # 3. Create ACCORDION cards with Dynamic AI Button
     cards = []
     for _, row in filtered_df.iterrows():
+        ticket_id = str(row.get('Change Request Id'))
+        desc = str(row.get('Description', ''))
+        cat = row.get('AI_Category', 'General')
+        
+        # Hidden payload to send to the AI
+        payload_text = f"Category: {cat} | Risk: {row.get('Risk')} | Workgroup: {row.get('Owner Work Group Name')} | Description: {desc}"
+
         cards.append(
             html.Details([
                 html.Summary([
-                    # Detailed Summary Header
                     html.Div([
-                        html.Span(f"#{row.get('Change Request Id', 'N/A')}", style={"fontWeight": "800", "fontSize": "14px", "color": "#111827"}),
-                        html.Span(f" • {row.get('Status', 'N/A')}", style={"fontSize": "12px", "color": "#059669", "fontWeight": "600"}),
-                        
+                        html.Span(f"#{ticket_id}", style={"fontWeight": "800", "fontSize": "14px", "color": "#111827"}),
+                        html.Span(f" • {row.get('Status', 'N/A')}", style={"fontSize": "12px", "color": "#059669"}),
+                        html.Span(f" • Risk: {row.get('Risk', 'N/A')}", style={"fontSize": "12px", "color": "#D97706"}),
                         html.Span(" ▾", style={"float": "right", "color": "#888"})
                     ], style={"display": "flex", "alignItems": "center", "gap": "8px"})
-                ], style={"padding": "12px", "cursor": "pointer", "backgroundColor": "#f9fafb", "borderRadius": "4px", "marginBottom": "4px", "listStyle": "none", "border": "1px solid #e5e7eb"}),
+                ], style={"padding": "12px", "cursor": "pointer", "backgroundColor": "#f9fafb", "borderRadius": "4px", "marginBottom": "4px", "border": "1px solid #e5e7eb", "listStyle": "none"}),
                 
-                # Expanded Details Content
+                # Expanded Content Block
                 html.Div([
-                    html.Div([html.B("Category: "), f"{row.get('Category', 'N/A')}"], style={"marginBottom": "8px"}),
-                    html.Div([html.B("Priority: "), f"{row.get('Priority', 'N/A')}"], style={"marginBottom": "8px"}),
+                    html.Div([html.B("Category: "), cat], style={"marginBottom": "8px"}),
                     html.Div([html.B("Owner: "), f"{row.get('Owner Work Group Name', 'N/A')}"], style={"marginBottom": "8px"}),
-                    html.Div([html.B("Description:"), html.P(f"{str(row.get('Description', ''))}", style={"marginTop": "4px", "color": "#555", "fontSize": "12px"})]),
+                    html.Div([html.B("Description:"), html.P(desc, style={"marginTop": "4px", "color": "#555", "fontSize": "12px"})]),
+                    
+                    # --- NEW: Dynamic AI Integration Elements ---
+                    html.Div(payload_text, id={"type": "ticket-payload", "index": ticket_id}, style={"display": "none"}),
+                    
+                    html.Button("Generate AI Action Plan", 
+                                id={"type": "btn-ticket-ai", "index": ticket_id}, 
+                                style={"background": "#111827", "color": "white", "border": "none", "padding": "8px 12px", "borderRadius": "6px", "cursor": "pointer", "fontSize": "11px", "fontWeight": "600", "marginTop": "8px", "width": "100%"}),
+                    
+                    dcc.Loading(
+                        html.Div(id={"type": "ticket-ai-output", "index": ticket_id}, style={"marginTop": "12px", "fontSize": "12px", "color": "#374151", "lineHeight": "1.5", "padding": "8px", "backgroundColor": "#F3F4F6", "borderRadius": "6px", "display": "none"}),
+                        type="dot", color="#111827"
+                    )
                 ], style={"padding": "16px", "fontSize": "13px", "border": "1px solid #e5e7eb", "borderTop": "none", "borderRadius": "0 0 4px 4px"})
             ], style={"marginBottom": "8px"})
         )
@@ -515,28 +553,41 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
     current_style["transform"] = "translateX(0%)"
     return content_layout, current_style
 
-    # 3. Create UI Cards for the filtered results
-    cards = []
-    for _, row in filtered_df.iterrows():
-        cards.append(html.Div([
-            html.Div([
-                html.Span(f"{row.get('Change Request Id', 'N/A')}", style={"fontWeight": "700", "color": "#111827", "fontSize": "13px"}),
-            ], style={"marginBottom": "4px"}),
-            
-            html.Div([
-                html.Span(f"Status: {row.get('Status', 'N/A')}", style={"marginRight": "12px", "color": "#10B981", "fontWeight": "600"}),
-                html.Span(f"Risk: {row.get('Risk', 'N/A')}", style={"marginRight": "12px", "color": "#F59E0B", "fontWeight": "600"}),
-            ], style={"marginBottom": "6px", "fontSize": "11px"}),
-            
-            html.Div(f"{str(row.get('Description', ''))}", style={"fontSize": "12px", "color": "#555", "lineHeight": "1.4", "wordWrap": "break-word"})
-        ], style={"borderBottom": "1px solid #f0f0f0", "padding": "12px 0"}))
 
-    content_layout = html.Div([
-        html.Div(f"{len(filtered_df)} items found for '{filter_text}'", style={"fontWeight": "600", "marginBottom": "16px", "color": "#111827", "fontSize": "13px", "backgroundColor": "#f3f4f6", "padding": "8px", "borderRadius": "4px"}),
-        html.Div(cards)
-    ])
-
-    # Show the panel
-    current_style["transform"] = "translateX(0%)"
+# ── NEW: INDIVIDUAL TICKET AI CALLBACK ────────────────────────────────────────
+@callback(
+    Output({"type": "ticket-ai-output", "index": MATCH}, "children"),
+    Output({"type": "ticket-ai-output", "index": MATCH}, "style"),
+    Input({"type": "btn-ticket-ai", "index": MATCH}, "n_clicks"),
+    State({"type": "ticket-payload", "index": MATCH}, "children"),
+    State({"type": "ticket-ai-output", "index": MATCH}, "style"),
+    prevent_initial_call=Trueh
+)
+def generate_single_ticket_insight(n_clicks, payload, current_style):
+    if not n_clicks:
+        return dash.no_update, dash.no_update
+        
+    prompt = f"""
+    You are an IT Operations Expert. Review this specific IT Change Request and provide a brief, actionable operational knowledge plan.
+    Do not be overly verbose. Give me:
+    **1. Root Cause Hypothesis:** (1 sentence)
+    **2. Recommended SOP / Action:** (1-2 sentences)
     
-    return content_layout, current_style
+    Ticket Details:
+    {payload}
+    """
+    try:
+        response = client.chat.completions.create(
+            model="google/gemma-4-31b-it:free",
+            messages=[{"role": "user", "content": prompt}],
+        )   
+        
+        # Make the output block visible after loading
+        new_style = current_style.copy()
+        new_style["display"] = "block"
+        
+        return dcc.Markdown(response.choices[0].message.content), new_style
+    except Exception as e:
+        new_style = current_style.copy()
+        new_style["display"] = "block"
+        return f"Error fetching insight: {str(e)}", new_style
