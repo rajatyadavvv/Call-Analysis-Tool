@@ -56,6 +56,7 @@ def kpi_card(label, value, delta):
 
 # ── Helper: build figures ─────────────────────────────────────────────────────
 def build_figures(fdf):
+    fig_category = px.bar(fdf["Category"].value_counts().reset_index(), x="Category", y="count")
     fig_location = px.bar(fdf["Location"].value_counts().reset_index(), x="Location", y="count")
     fig_location.update_layout(height=300, margin=dict(l=0, r=0, t=10, b=0), xaxis_title="", yaxis_title="")
 
@@ -91,7 +92,7 @@ def build_figures(fdf):
     )
     fig_aging.update_layout(height=300, margin=dict(l=0, r=0, t=10, b=0), xaxis_title="", yaxis_title="")
 
-    return fig_location, fig_status, fig_workgroup, fig_month, fig_aging
+    return fig_category, fig_location, fig_status, fig_workgroup, fig_month, fig_aging
 
 
 def build_kpis(fdf):
@@ -150,6 +151,7 @@ def render_insights(text):
     Output("sr-kpi-row",        "children"),
     Output("sr-graph-month",    "figure"),
     Output("sr-graph-location", "figure"),
+    Output("sr-graph-classification", "figure"),
     Output("sr-graph-status",   "figure"),
     Output("sr-graph-workgroup","figure"),
     Output("sr-graph-aging",    "figure"),
@@ -171,7 +173,7 @@ def update_charts(from_month, to_month):
         )
 
     active, res, rej, pend_app, rate = build_kpis(fdf)
-    fig_loc, fig_stat, fig_wg, fig_mo, fig_aging = build_figures(fdf)
+    fig_category, fig_loc, fig_stat, fig_wg, fig_mo, fig_aging = build_figures(fdf)
 
     kpis = html.Div([
         kpi_card("ACTIVE SRS",          active,    "Active in pipeline"),
@@ -180,7 +182,7 @@ def update_charts(from_month, to_month):
         kpi_card("PENDING FOR APPROVAL", pend_app,  "Awaiting approval"),
     ], style={"display": "flex", "gap": "16px"})
 
-    return kpis, fig_mo, fig_loc, fig_stat, fig_wg, fig_aging
+    return kpis, fig_mo, fig_loc, fig_category,fig_stat, fig_wg, fig_aging
 
 
 # ── Callback: AI insights — only fires on button click ───────────────────────
@@ -249,7 +251,7 @@ def update_insights(n_clicks, weeks):
 
     label = "all time" if weeks == 9999 else f"last {weeks} week(s)"
     prompt = f"""
-You are an IT service desk analyst. Analyze ALL these Service Requests from the {label}.
+You are an Senior and highly skilled IT service desk analyst. Analyze ALL these Service Requests from the {label}.
 
 Find ALL unique patterns. Do not limit to 3. One pattern per unique issue type.
 
@@ -437,12 +439,19 @@ def layout():
                     html.Div("SRs by Location", style={"fontWeight": "600", "marginBottom": "12px"}),
                     dcc.Graph(id="sr-graph-location", config={"displayModeBar": False}),
                 ], style={"flex": "1", **CARD}),
+            ], style={"display": "flex", "gap": "16px", "marginBottom": "16px"}),
+
+            html.Div([
+                html.Div([
+                    html.Div("Classification Distribution", style={"fontWeight": "600", "marginBottom": "12px"}),
+                    dcc.Graph(id="sr-graph-classification", config={"displayModeBar": False}),
+                ], style={"flex": "1", **CARD}),
                 html.Div([
                     html.Div("Status Distribution", style={"fontWeight": "600", "marginBottom": "12px"}),
                     dcc.Graph(id="sr-graph-status", config={"displayModeBar": False}),
                 ], style={"flex": "1", **CARD}),
             ], style={"display": "flex", "gap": "16px", "marginBottom": "16px"}),
-
+                
             html.Div([
                 html.Div([
                     html.Div("SR Aging Distribution", style={"fontWeight": "600", "marginBottom": "12px"}),
