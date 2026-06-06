@@ -139,6 +139,11 @@ def layout():
             ], style={"display": "flex", "justifyContent": "space-between", "alignItems": "center", "padding": "16px 24px", "borderBottom": "1px solid #e0e0e0", "background": "#F3F3F3"}),
 
             html.H1("ALC & EVSM Change Requests", style={"padding": "12px 20px", "marginBottom": "0px"}),
+            dcc.Interval(
+            id='auto-refresh-interval',
+            interval=5 * 60 * 1000,  # 5 minutes in milliseconds (5 * 60 * 1000)
+            n_intervals=0
+            ),
 
             # Global Date Range Picker
             html.Div([
@@ -258,8 +263,9 @@ def layout():
     Output("oldest-pending-output", "children"), 
     Input("date-picker-range", "start_date"),
     Input("date-picker-range", "end_date"),
+    Input("auto-refresh-interval","n_intervals")
 )
-def update_dashboard(start_date, end_date):
+def update_dashboard(start_date, end_date,end_intervals):
     conn = get_connection()
     df_full = pd.read_sql("SELECT * FROM cr_report", conn)
     conn.close()
@@ -561,7 +567,7 @@ def update_drilldown_side_panel(c_month, c_cat, c_risk, c_stat, c_wg, c_aging, c
     Input({"type": "btn-ticket-ai", "index": MATCH}, "n_clicks"),
     State({"type": "ticket-payload", "index": MATCH}, "children"),
     State({"type": "ticket-ai-output", "index": MATCH}, "style"),
-    prevent_initial_call=Trueh
+    prevent_initial_call=True
 )
 def generate_single_ticket_insight(n_clicks, payload, current_style):
     if not n_clicks:
