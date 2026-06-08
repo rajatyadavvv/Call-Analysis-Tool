@@ -35,7 +35,7 @@ df_raw = pd.read_sql("SELECT * FROM incident_report", conn)
 conn.close()
 
 base_df = df_raw[df_raw["Workgroup"].isin(["IT Support (ALC)", "IT Support (EVSM)"])].reset_index(drop=True)
-base_df["date"] = pd.to_datetime(base_df["Log Time"], format="%d/%m/%y %H:%M", errors="coerce")
+base_df["date"] = pd.to_datetime(base_df["Log Time"], format="%m/%d/%Y %H:%M", errors="coerce")
 base_df["month_year"] = base_df["date"].dt.strftime("%Y-%m")
 base_df["month_year_label"] = base_df["date"].dt.strftime("%B %Y")
 base_df["age_days"] = (datetime.now() - base_df["date"]).dt.days
