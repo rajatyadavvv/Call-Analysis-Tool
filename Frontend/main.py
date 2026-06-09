@@ -25,6 +25,7 @@ NAV_ITEMS = [
     {"label": "CR",       "href": "/cr"},
     {"label": "SR",       "href": "/sr"},
     {"label": "Incident", "href": "/incident"},
+    {"label": "PLM",      "href": "/plm"},
     {"label": "Notifications", "href": "/notifications"},
 ]
 

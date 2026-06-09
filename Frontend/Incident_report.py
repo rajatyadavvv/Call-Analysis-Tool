@@ -17,6 +17,7 @@ client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
 )
 
+
 # ── Notion/Linear palette ─────────────────────────────────────────────────────
 PIE_COLORS = ["#2F3542", "#546DE5", "#778CA3", "#A4B0BE", "#CDD6E0", "#E8EDF2"]
 BAR_COLOR  = "#546DE5"
