@@ -2,6 +2,7 @@ import dash
 import os
 from dash import html, dcc, Input, Output, callback
 import dash_bootstrap_components as dbc
+from Chatbot_Component.chatbot_ui import create_chatbot_layout, register_chatbot_callbacks
 
 app = dash.Dash(
     __name__,
@@ -144,6 +145,9 @@ app.layout = html.Div([
         dash.page_container,
     ], style={"marginLeft": "220px", "background": "#F7F9FC", "minHeight": "100vh"}),
 
+    # Chatbot component
+    create_chatbot_layout()
+
 ])
 
 
@@ -176,6 +180,7 @@ def update_badge(notifications):
         return "", {**base_style, "display": "none"}
     return str(unread), base_style
 
+register_chatbot_callbacks(app)
 
 if __name__ == "__main__":
     app.run(debug=True)
