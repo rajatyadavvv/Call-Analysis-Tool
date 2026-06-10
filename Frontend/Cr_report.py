@@ -25,7 +25,7 @@ PENDING_STATUSES = [
 ]
 Closed_statuses  = ["Implementation Review Closed", "Closed", "Implemented"]
 
-# ── Professional neutral color palette ───────────────────────────────────────
+# colour 
 NEUTRAL_COLORS   = ["#8080EB", "#7FA6EE", "#6363ED", "#9EEDF9", "#C4C4D4", "#BBE798"]
 PIE_COLORS       = ["#1A1A2E", "#3D3D5C", "#6B6B8A", "#9494B0", "#B8B8CE", "#D8D8E8"]
 RISK_COLOR_MAP   = {"High": "#1A1A2E", "Medium": "#6B6B8A", "Low": "#C4C4D4"}
@@ -68,7 +68,7 @@ def build_oldest_ui(oldest_df, empty_message):
     return items
 
 
-# ── Load data ─────────────────────────────────────────────────────────────────
+#  Load data 
 conn        = get_connection()
 df          = pd.read_sql("SELECT * FROM cr_report", conn)
 conn.close()
@@ -100,7 +100,7 @@ def kpi_card(label, value, delta):
     ], style={"flex": "1", "padding": "24px", **CARD})
 
 
-# ── Layout ────────────────────────────────────────────────────────────────────
+#  Layout 
 def layout():
     return html.Div([
         html.Div([
@@ -233,7 +233,7 @@ def layout():
     ])
 
 
-# ── Master callback ───────────────────────────────────────────────────────────
+#  Master callback
 @callback(
     Output("kpi-row",              "children"),
     Output("chart-month",          "figure"),

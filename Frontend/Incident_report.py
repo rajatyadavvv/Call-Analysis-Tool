@@ -184,7 +184,7 @@ def update_charts(start_date, end_date):
     return kpis, fig_mo, fig_loc, fig_stat, fig_cls, fig_wg, oldest_panel
 
 
-# ── Callback: AI insights — generate button only ─────────────────────────────
+# Callback: AI insights — generate button only
 @callback(
     Output("ai-insights-output-incident", "children"),
     Input("inc-generate-btn",             "n_clicks"),

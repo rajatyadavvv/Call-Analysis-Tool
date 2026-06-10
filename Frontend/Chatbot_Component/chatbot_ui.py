@@ -39,28 +39,55 @@ def get_chatbot_response(user_text):
 
     try:
         conn = get_connection()
-        # Create a SQL query using LIKE for each keyword
-        conditions = " OR ".join(["`Symptom` LIKE %s"] * len(keywords))
-        query = f"SELECT `Incident ID`, `Symptom`, `Solution`, `Status` FROM incident_report WHERE ({conditions}) AND `Solution` IS NOT NULL AND `Solution` != '' LIMIT 5"
-        
         params = tuple([f"%{kw}%" for kw in keywords])
-        df = pd.read_sql(query, conn, params=params)
+        params_double = params + params
+        
+        # 1. Incident Report
+        conditions_inc = " OR ".join(["LOWER(`Symptom`) LIKE %s"] * len(keywords))
+        order_inc = " + ".join(["(LOWER(`Symptom`) LIKE %s)"] * len(keywords))
+        query_inc = f"SELECT * FROM incident_report WHERE ({conditions_inc}) AND `Solution` IS NOT NULL AND `Solution` != '' ORDER BY ({order_inc}) DESC LIMIT 3"
+        df_inc = pd.read_sql(query_inc, conn, params=params_double)
+        
+        # 2. SR Report
+        conditions_sr = " OR ".join(["LOWER(`Subject`) LIKE %s"] * len(keywords))
+        order_sr = " + ".join(["(LOWER(`Subject`) LIKE %s)"] * len(keywords))
+        query_sr = f"SELECT * FROM sr_report WHERE ({conditions_sr}) ORDER BY ({order_sr}) DESC LIMIT 3"
+        df_sr = pd.read_sql(query_sr, conn, params=params_double)
+
+        # 3. CR Report
+        conditions_cr = " OR ".join(["LOWER(`Description`) LIKE %s"] * len(keywords))
+        order_cr = " + ".join(["(LOWER(`Description`) LIKE %s)"] * len(keywords))
+        query_cr = f"SELECT * FROM cr_report WHERE ({conditions_cr}) ORDER BY ({order_cr}) DESC LIMIT 3"
+        df_cr = pd.read_sql(query_cr, conn, params=params_double)
+        
         conn.close()
         
         context_str = ""
-        if not df.empty:
-            for _, row in df.iterrows():
-                context_str += f"- ID {row.get('Incident ID')} ({row.get('Status')}): {row.get('Symptom')}\n  Fix: {row.get('Solution')}\n"
+        if not df_inc.empty:
+            context_str += "--- INCIDENTS ---\n"
+            for _, row in df_inc.iterrows():
+                context_str += f"- Incident ID {row.get('Incident ID')} ({row.get('Status')}): {row.get('Symptom')}\n  Fix: {row.get('Solution')}\n"
+                
+        if not df_sr.empty:
+            context_str += "--- SERVICE REQUESTS ---\n"
+            for _, row in df_sr.iterrows():
+                sol = row.get('Solution', 'N/A')
+                context_str += f"- SR ID {row.get('Service Request ID')} ({row.get('Status')}): {row.get('Subject')}\n  Fix/Action: {sol}\n"
+
+        if not df_cr.empty:
+            context_str += "--- CHANGE REQUESTS ---\n"
+            for _, row in df_cr.iterrows():
+                context_str += f"- CR ID {row.get('Change Request Id')} ({row.get('Status')}): {row.get('Description')}\n"
                 
         # Send prompt to LM Studio
         prompt = f"""
 You are an intelligent offline IT Support Assistant inside an admin dashboard. 
 The user is asking: "{user_text}"
 
-Here is some context retrieved from your local database of past resolved incidents (if any matches were found):
-{context_str if context_str else "No direct matches found in past incidents."}
+Here is some context retrieved from your local database of past Incidents, Service Requests (SR), and Change Requests (CR) (if any matches were found):
+{context_str if context_str else "No direct matches found in the database."}
 
-Please provide a helpful, concise answer based on this context. If past solutions are relevant, mention them to help the admin.
+Please provide a perfectly analyzed, helpful, and concise answer. If past solutions, requests, or changes are provided in the context, analyze them and mention them to help the admin. If NO context was found in the database, use your extensive general IT knowledge to provide the best possible solution and troubleshooting steps for the issue.
 """
 
         try:
@@ -171,7 +198,7 @@ def create_chatbot_layout():
                             placeholder="Type a message...",
                             style={
                                 "flex": "1", 
-                                "padding": "10px", 
+                                "padding": "4px", 
                                 "borderRadius": "8px", 
                                 "border": "1px solid #D1D5DB",
                                 "outline": "none",
